@@ -1,31 +1,38 @@
-from mapr.ojai.storage.ConnectionFactory import ConnectionFactory
+import boto3
+from botocore.exceptions import NoCredentialsError
 
-# Replace these variables with your MapR Object Store details
-mapr_url = "mapr-x.x.x:5678"  # Replace with your MapR server URL
-volume_name = "/your/volume"   # Replace with your MapR volume path
-container_name = "your-container"  # Replace with your MapR container name
-file_path = "/path/to/your/file.txt"  # Replace with the path to your local file
-document_id = "/path/to/your/document-id"  # Replace with your desired document ID
+def upload_to_hpe(file_path, bucket_name, object_name, access_key, secret_key, endpoint_url):
+    """
+    Upload a file to HPE object store.
 
-# Create a connection to the MapR Object Store
-connection_str = f"ojai:mapr:{mapr_url}?volume={volume_name}&container={container_name}"
-connection = ConnectionFactory.get_connection(connection_str)
+    Parameters:
+    - file_path: Local path of the file to upload.
+    - bucket_name: Name of the bucket in HPE object store.
+    - object_name: Name to give the object in the object store.
+    - access_key: Access key for authentication.
+    - secret_key: Secret key for authentication.
+    - endpoint_url: HPE object store endpoint URL.
+    """
+    try:
+        # Create an S3 client
+        s3 = boto3.client('s3', endpoint_url=endpoint_url, aws_access_key_id=access_key, aws_secret_access_key=secret_key)
 
-# Get a DocumentStore reference
-document_store = connection.get_store("/path/to/your/document-store")
+        # Upload the file
+        s3.upload_file(file_path, bucket_name, object_name)
 
-# Read the content of the local file
-with open(file_path, "rb") as file:
-    file_content = file.read()
+        print(f"File uploaded successfully to {bucket_name}/{object_name}")
 
-# Create a Document and set the file content as its value
-document = connection.new_document(dictionary={
-    "_id": document_id,
-    "content": file_content
-})
+    except NoCredentialsError:
+        print("Credentials not available or not valid.")
+    except Exception as e:
+        print(f"Error uploading file: {e}")
 
-# Insert or update the document in the MapR Object Store
-document_store.insert_or_replace(document_id, document)
+# Example usage
+file_path = "path/to/your/file.txt"
+bucket_name = "your-bucket-name"
+object_name = "uploaded-file.txt"
+access_key = "your-access-key"
+secret_key = "your-secret-key"
+endpoint_url = "https://your-hpe-object-store-endpoint"
 
-# Close the connection
-connection.close()
+upload_to_hpe(file_path, bucket_name, object_name, access_key, secret_key, endpoint_url)
